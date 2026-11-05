@@ -26,6 +26,10 @@ const state = {
   phq: { interest: null, down: null, item9: null },
   region: (() => { const r = storage.get("region", BOOT.region); return r in REGIONS ? r : "DEFAULT"; })(),
   days: 30,
+  profile: BOOT.profile?.profile ?? {},
+  body: BOOT.profile?.body ?? null,
+  sleepFromHealth: false,
+  memories: BOOT.profile?.memories ?? [],
 };
 
 /* ---------- shell: tabs, palettes, art ---------- */
@@ -38,6 +42,7 @@ function showTab(tab) {
   $$(".screen").forEach((s) => s.classList.toggle("active", s.id === `screen-${tab}`));
   $("#scroll").scrollTop = 0;
   if (tab === "history") loadHistory();
+  if (tab === "support") loadProfile(); // an agent may have remembered something new
 }
 $$(".tab").forEach((t) => t.addEventListener("click", () => showTab(t.dataset.tab)));
 
@@ -81,11 +86,21 @@ function hotlineHTML(lines) {
   }).join("");
 }
 
+/** The person's own emergency contact, from their profile. Never sent to a model. */
+function contactHTML() {
+  const c = state.profile.emergency_contact;
+  if (!c?.phone) return "";
+  const digits = c.phone.replace(/[^\d+]/g, "");
+  return `<div class="line"><p class="name">${esc(c.name)} · your emergency contact</p><div class="acts"><a class="act" href="tel:${digits}">${ICONS.call}Call ${esc(c.name)}</a><a class="act alt" href="sms:${digits}">${ICONS.sms}Text</a></div></div>`;
+}
+
 /* ---------- crisis screen ---------- */
 let crisisTimer = null;
 function openCrisis(reasons = [], lines = hotlinesFor(state.region)) {
   const el = $("#crisis");
   $("#crisis-hotlines").innerHTML = hotlineHTML(lines);
+  $("#crisis-contact").innerHTML = contactHTML();
+  $("#crisis-contact").hidden = !contactHTML();
   $("#crisis-why").hidden = reasons.length === 0;
   $("#crisis-why ul").innerHTML = reasons.map((r) => `<li>${esc(r)}</li>`).join("");
 
@@ -108,7 +123,8 @@ $$('[data-action="sos"]').forEach((b) => b.addEventListener("click", () => openC
 function renderGreeting() {
   const now = new Date();
   const h = now.getHours();
-  $("#greeting").textContent = h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
+  const hello = h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
+  $("#greeting").textContent = state.profile.preferred_name ? `${hello}, ${state.profile.preferred_name}` : hello;
   $("#today-label").textContent = now.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" });
 }
 
@@ -126,8 +142,8 @@ $("#tags").addEventListener("click", (e) => {
   state.tags.has(t) ? state.tags.delete(t) : state.tags.add(t);
   syncForm();
 });
-$("#sleep-minus").addEventListener("click", () => { state.sleep = Math.max(0, state.sleep - 0.5); state.sleepSkipped = false; syncForm(); });
-$("#sleep-plus").addEventListener("click", () => { state.sleep = Math.min(24, state.sleep + 0.5); state.sleepSkipped = false; syncForm(); });
+$("#sleep-minus").addEventListener("click", () => { state.sleep = Math.max(0, state.sleep - 0.5); state.sleepSkipped = false; state.sleepFromHealth = false; syncForm(); });
+$("#sleep-plus").addEventListener("click", () => { state.sleep = Math.min(24, state.sleep + 0.5); state.sleepSkipped = false; state.sleepFromHealth = false; syncForm(); });
 $("#sleep-skip").addEventListener("click", () => { state.sleepSkipped = !state.sleepSkipped; syncForm(); });
 $("#phq").addEventListener("click", (e) => {
   const b = e.target.closest("[data-v]");
@@ -154,6 +170,7 @@ function syncForm() {
   $("#tag-count").textContent = state.tags.size ? `${state.tags.size} of 3` : "Pick up to 3";
 
   $("#sleep-value").textContent = `${state.sleep} h`;
+  $("#sleep-source").hidden = !state.sleepFromHealth || state.sleepSkipped;
   $(".stepper").classList.toggle("off", state.sleepSkipped);
   $("#sleep-skip").classList.toggle("on", state.sleepSkipped);
   $("#sleep-skip").setAttribute("aria-pressed", String(state.sleepSkipped));
@@ -260,10 +277,17 @@ function renderOffline(body) {
   $("#new-checkin").addEventListener("click", () => { el.hidden = true; $("#checkin-form").hidden = false; });
 }
 
+/** Last night's sleep from Apple Health, rounded to the stepper's half hours. */
+function healthSleep() {
+  const h = state.body?.last_night_sleep;
+  return h == null ? null : Math.round(h * 2) / 2;
+}
+
 function resetForm() {
   state.mood = null;
   state.tags.clear();
-  state.sleep = 7;
+  state.sleep = healthSleep() ?? 7;
+  state.sleepFromHealth = healthSleep() != null;
   state.sleepSkipped = false;
   state.phq = { interest: null, down: null, item9: null };
   $("#note").value = "";
@@ -537,13 +561,34 @@ function renderChart(rows) {
   const dots = pts.map(([px, py, r]) => `<circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="4.5" fill="#fff" stroke="${LEVEL_COLOR[r.risk] || accent}" stroke-width="2.5"><title>${r.date}: ${MOOD_LABEL[r.mood]}${r.risk ? " · " + LEVEL_LABEL[r.risk] : ""}</title></circle>`).join("");
   const fmt = (d) => d.toLocaleDateString(undefined, { day: "numeric", month: "short" });
   const ticks = `<text x="${L}" y="${H - 3}" font-size="10" fill="${soft}">${fmt(start)}</text><text x="${W - R}" y="${H - 3}" text-anchor="end" font-size="10" fill="${soft}">Today</text>`;
-  $("#chart").innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Mood over the last ${state.days} days">${grid}<path d="${area}" fill="${accent}" fill-opacity=".12"/><path d="${line}" fill="none" stroke="${accent}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>${dots}${ticks}</svg>`;
+  // Shade the predicted week before each period, if they track their cycle.
+  const xd = (d) => L + ((d - start) / (today - start)) * (W - L - R);
+  const clampX = (v) => Math.max(L, Math.min(W - R, v));
+  const starts = periodStarts(state.profile.cycle, start, today);
+  const bands = starts.map((s) => {
+    const x0 = clampX(xd(addDays(s, -PREMENSTRUAL_DAYS))), x1 = clampX(xd(s));
+    return x1 > x0 ? `<rect x="${x0.toFixed(1)}" y="${T}" width="${(x1 - x0).toFixed(1)}" height="${H - T - B}" fill="#e46a8f" fill-opacity=".12"><title>Week before a predicted period</title></rect>` : "";
+  }).join("");
+  renderCycleNote(rows, starts);
+  $("#chart").innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Mood over the last ${state.days} days">${bands}${grid}<path d="${area}" fill="${accent}" fill-opacity=".12"/><path d="${line}" fill="none" stroke="${accent}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>${dots}${ticks}</svg>`;
+}
+
+function renderCycleNote(rows, starts) {
+  const note = $("#cycle-note");
+  const inWindow = (iso) => starts.some((s) => { const d = daysBetween(day0(iso), s); return d >= 1 && d <= PREMENSTRUAL_DAYS; });
+  const low = rows.filter((r) => r.mood <= 2);
+  note.hidden = !starts.length;
+  if (!starts.length) return;
+  const before = low.filter((r) => inWindow(r.date)).length;
+  note.textContent = low.length
+    ? `Shaded: the week before each predicted period. ${before} of your ${low.length} low days fell in those weeks.`
+    : "Shaded: the week before each predicted period.";
 }
 
 /* ---------- support ---------- */
 function renderSupport() {
   $("#region-pills").innerHTML = Object.entries(REGIONS).map(([code, label]) => pillHTML(label, code === state.region, `data-region="${code}"`)).join("");
-  $("#support-hotlines").innerHTML = hotlineHTML(hotlinesFor(state.region));
+  $("#support-hotlines").innerHTML = contactHTML() + hotlineHTML(hotlinesFor(state.region));
 }
 $("#region-pills").addEventListener("click", (e) => {
   const b = e.target.closest("[data-region]");
@@ -555,18 +600,194 @@ $("#region-pills").addEventListener("click", (e) => {
 
 function renderExercises() {
   $("#exercises").innerHTML = BOOT.coping.map((x) => `<details class="card"><summary>${esc(x.title)}</summary><div class="inner"><ol class="ex">${x.steps.map((s) => `<li>${esc(s)}</li>`).join("")}</ol></div></details>`).join("");
-  const label = { decline: "Slow decline", good: "Good week", steady: "Steady", empty: "Empty" };
-  $("#demo-pills").innerHTML = BOOT.scenarios.map((s) => pillHTML(label[s] ?? titleCase(s), false, `data-scenario="${s}"`)).join("");
 }
-$("#demo-pills").addEventListener("click", async (e) => {
-  const b = e.target.closest("[data-scenario]");
+
+/* ---------- period cycle (same rules as app/cycle.py) ---------- */
+const PREMENSTRUAL_DAYS = 7, STALE_CYCLES = 3;
+const day0 = (iso) => new Date(iso + "T00:00:00");
+const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+const isoDate = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+const daysBetween = (a, b) => Math.round((b - a) / 86400000);
+
+function cycleStatus(c, today = new Date()) {
+  if (!c?.tracking || !c.last_start) return null;
+  const t = day0(isoDate(today)), since = daysBetween(day0(c.last_start), t);
+  if (since < 0 || since > STALE_CYCLES * c.length) return null;
+  const cycleDay = (since % c.length) + 1, untilNext = c.length - (since % c.length);
+  const phase = cycleDay <= c.period_length ? "period" : untilNext <= PREMENSTRUAL_DAYS ? "premenstrual" : "other";
+  return { phase, cycleDay, untilNext, next: addDays(t, untilNext) };
+}
+
+/** Predicted period starts covering [from, to], stepping both ways from the last known start. */
+function periodStarts(c, from, to) {
+  if (!c?.tracking || !c.last_start) return [];
+  const last = day0(c.last_start), out = [];
+  let s = new Date(last);
+  while (s > from) s = addDays(s, -c.length);
+  const stop = addDays(last, STALE_CYCLES * c.length);
+  for (; s <= addDays(to, PREMENSTRUAL_DAYS) && s <= stop; s = addDays(s, c.length)) out.push(new Date(s));
+  return out;
+}
+
+/* ---------- profile and memory ---------- */
+const AGE_GROUPS = { teen: "13–17", young_adult: "18–25", adult: "26–59", older_adult: "60+", "": "Prefer not to say" };
+const GENDERS = { male: "Male", female: "Female", other: "Other" };
+const CONTEXTS = { new_baby: "New baby", shift_work: "Shift work", illness_or_injury: "Illness or injury", travel: "Travel" };
+const splitList = (s) => s.split(",").map((x) => x.trim()).filter(Boolean);
+
+function renderProfile() {
+  const p = state.profile;
+  $("#pf-name").value = p.preferred_name ?? "";
+  $("#pf-age").innerHTML = Object.entries(AGE_GROUPS).map(([v, label]) => pillHTML(label, (p.age_group ?? "") === v, `data-age="${v}" role="radio"`)).join("");
+  $("#pf-gender").innerHTML = Object.entries(GENDERS).map(([v, label]) => pillHTML(label, (p.gender ?? "") === v, `data-gender="${v}" role="radio"`)).join("");
+  const c = p.cycle ?? {};
+  $("#pf-cycle-on").checked = Boolean(c.tracking);
+  $("#pf-cycle-start").value = c.last_start ?? "";
+  $("#pf-cycle-start").max = isoDate(new Date());
+  $("#pf-cycle-length").value = c.length ?? 28;
+  $("#pf-cycle-period").value = c.period_length ?? 5;
+  syncCycle();
+  $("#pf-context").innerHTML = Object.entries(CONTEXTS).map(([v, label]) => pillHTML(label, (p.health_context ?? []).includes(v), `data-context="${v}"`)).join("");
+  $("#pf-helps").value = (p.what_helps ?? []).join(", ");
+  $("#pf-people").value = (p.trusted_people ?? []).join(", ");
+  $("#pf-contact-name").value = p.emergency_contact?.name ?? "";
+  $("#pf-contact-phone").value = p.emergency_contact?.phone ?? "";
+  $("#memories").innerHTML = state.memories.length
+    ? state.memories.map((m, i) => `<li><span>${esc(m.text)}<small>${new Date(m.saved + "T00:00:00").toLocaleDateString(undefined, { day: "numeric", month: "short" })}</small></span><button type="button" data-forget="${i}" aria-label="Forget this">×</button></li>`).join("")
+    : '<li class="empty">Nothing yet. Lantern notes things you share, like who helps you.</li>';
+}
+
+function renderBody() {
+  const b = state.body;
+  $("#noticed").hidden = !b?.noticed?.length;
+  $("#noticed-list").innerHTML = (b?.noticed ?? []).map((r) => `<li>${esc(r.replace(/ \(Apple Health\)$/, ""))}</li>`).join("");
+  $("#body-card").hidden = !b?.available;
+  if (!b?.available) return;
+  const num = (r, v) => (r.key === "sleep_hours" ? v.toFixed(1) : Math.round(v).toLocaleString());
+  const flagged = (r) => (r.key === "sleep_hours" || r.key === "steps") && b.noticed.some((n) => n.toLowerCase().includes(r.label.toLowerCase()));
+  $("#body-rows").innerHTML = b.rows.map((r) => {
+    const pct = r.usual ? Math.round(((r.this_week - r.usual) / r.usual) * 100) : 0;
+    const chg = pct === 0 ? "same" : `${pct > 0 ? "↑" : "↓"} ${Math.abs(pct)}%`;
+    return `<div class="body-row"><b>${esc(r.label)}</b><span class="chg${flagged(r) ? " flag" : ""}">${chg}</span><small>${num(r, r.this_week)} ${esc(r.unit)} this week · usual ${num(r, r.usual)}</small></div>`;
+  }).join("");
+  $("#body-expected").hidden = !b.expected.length;
+  $("#body-expected").textContent = b.expected.length ? `Changes in sleep or activity are expected with ${b.expected.join(" and ")}, so Lantern doesn't treat them as warning signs.` : "";
+}
+
+function applyProfile(data) {
+  state.profile = data.profile;
+  state.memories = data.memories;
+  if ("body" in data) { state.body = data.body; renderBody(); }
+  renderProfile();
+  renderGreeting();
+  renderSupport();
+}
+
+async function loadProfile() {
+  try { applyProfile(await (await fetch("/api/profile")).json()); } catch { renderProfile(); }
+}
+
+async function sendProfile(url, body) {
+  const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || "Couldn't save");
+  applyProfile(data);
+}
+
+const isMale = () => $("#pf-gender .on")?.dataset.gender === "male";
+
+function formCycle() {
+  return {
+    tracking: !isMale() && $("#pf-cycle-on").checked,
+    last_start: $("#pf-cycle-start").value || null,
+    length: Number($("#pf-cycle-length").value) || 28,
+    period_length: Number($("#pf-cycle-period").value) || 5,
+  };
+}
+
+function syncCycle() {
+  $("#pf-cycle").hidden = isMale();
+  $("#pf-cycle-fields").hidden = !$("#pf-cycle-on").checked;
+  const s = cycleStatus(formCycle());
+  const fmt = (d) => d.toLocaleDateString(undefined, { day: "numeric", month: "short" });
+  $("#pf-cycle-status").textContent = !$("#pf-cycle-on").checked ? ""
+    : !$("#pf-cycle-start").value ? "Add when your last period started to see predictions."
+    : !s ? "That date is a while ago. Update it to keep predictions useful."
+    : s.phase === "period" ? `Today is about day ${s.cycleDay} of your period.`
+    : s.phase === "premenstrual" ? `Your next period is expected in about ${s.untilNext} days.`
+    : `Next period expected around ${fmt(s.next)}.`;
+}
+
+// Choosing Female turns cycle tracking on by default; anyone can switch it on or off.
+$("#pf-gender").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-gender]");
   if (!b) return;
+  // Tapping the chosen option again clears it, so gender stays optional.
+  const choose = !b.classList.contains("on");
+  $$("#pf-gender [data-gender]").forEach((x) => { const on = choose && x === b; x.classList.toggle("on", on); x.setAttribute("aria-pressed", String(on)); });
+  if (choose && b.dataset.gender === "female" && !state.profile.cycle?.last_start) $("#pf-cycle-on").checked = true;
+  syncCycle();
+});
+["#pf-cycle-on", "#pf-cycle-start", "#pf-cycle-length", "#pf-cycle-period"].forEach((id) => $(id).addEventListener("input", syncCycle));
+$("#pf-cycle-today").addEventListener("click", () => { $("#pf-cycle-start").value = isoDate(new Date()); syncCycle(); });
+
+$("#pf-context").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-context]");
+  if (!b) return;
+  const on = !b.classList.contains("on");
+  b.classList.toggle("on", on);
+  b.setAttribute("aria-pressed", String(on));
+});
+
+$("#pf-age").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-age]");
+  if (!b) return;
+  $$("#pf-age [data-age]").forEach((x) => { x.classList.toggle("on", x === b); x.setAttribute("aria-pressed", String(x === b)); });
+});
+
+$("#profile-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const name = $("#pf-contact-name").value.trim(), phone = $("#pf-contact-phone").value.trim();
+  const err = $("#pf-error");
+  err.hidden = true;
+  if (Boolean(name) !== Boolean(phone)) { err.textContent = "Add both a name and a phone for your emergency contact."; err.hidden = false; return; }
   try {
-    await postJSON(`/api/demo/reset?scenario=${b.dataset.scenario}`, {});
-    toast(`History reset: ${b.textContent}`);
-  } catch {
-    toast("Couldn't reach the server");
+    await sendProfile("/api/profile", {
+      preferred_name: $("#pf-name").value.trim() || null,
+      age_group: $("#pf-age .on")?.dataset.age || null,
+      gender: $("#pf-gender .on")?.dataset.gender || null,
+      cycle: formCycle(),
+      health_context: $$("#pf-context .on").map((b) => b.dataset.context),
+      what_helps: splitList($("#pf-helps").value),
+      trusted_people: splitList($("#pf-people").value),
+      emergency_contact: name ? { name, phone } : null,
+    });
+    toast("Saved");
+  } catch (ex) {
+    err.textContent = ex.message;
+    err.hidden = false;
   }
+});
+
+$("#memories").addEventListener("click", async (e) => {
+  const b = e.target.closest("[data-forget]");
+  if (!b) return;
+  try { await sendProfile("/api/memories/forget", { index: Number(b.dataset.forget) }); toast("Forgotten"); } catch { toast("Couldn't reach the server"); }
+});
+
+// Two taps, no browser dialog: the first arms the button for a few seconds.
+let forgetArmed = null;
+$("#forget-all").addEventListener("click", async () => {
+  const b = $("#forget-all");
+  if (!forgetArmed) {
+    b.textContent = "Tap again to forget everything";
+    forgetArmed = setTimeout(() => { forgetArmed = null; b.textContent = "Forget everything"; }, 4000);
+    return;
+  }
+  clearTimeout(forgetArmed);
+  forgetArmed = null;
+  b.textContent = "Forget everything";
+  try { await sendProfile("/api/memories/forget-all", {}); toast("Memories and past conversations deleted"); } catch { toast("Couldn't reach the server"); }
 });
 
 /* ---------- init ---------- */
@@ -576,4 +797,7 @@ syncForm();
 refreshTalk();
 renderSupport();
 renderExercises();
+renderProfile();
+renderBody();
+resetForm();
 showTab("checkin");

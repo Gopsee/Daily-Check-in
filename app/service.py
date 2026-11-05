@@ -6,6 +6,7 @@ from collections.abc import Callable
 from app import config
 from app.data import coping_by_id, coping_exercises, hotlines_for
 from app.models import AgentOutput, Checkin, CheckinResult, RiskFinding, RiskLevel
+from app.health import BASELINE_DAYS, RECENT_DAYS, body_layer, summarize
 from app.risk.engine import combine, evaluate
 from app.store.base import Store
 
@@ -33,12 +34,19 @@ def fallback_coping(checkin: Checkin) -> dict:
     return best if tags & set(best["good_for"]) else coping_by_id(MOOD_COPING[checkin.mood])
 
 
+def body_findings(store: Store, user_id: str, today, expected: frozenset[str] = frozenset()) -> list[RiskFinding]:
+    """Apple Health signals against the person's own usual: elevated at most, never lowering risk."""
+    return body_layer(summarize(store.get_health(user_id, RECENT_DAYS + BASELINE_DAYS, today), today), expected)
+
+
 def submit_checkin(
     store: Store,
     checkin: Checkin,
     run_agent: AgentRunner | None = None,
     region: str = config.HOTLINE_REGION,
+    expected: frozenset[str] = frozenset(),
 ) -> CheckinResult:
+    """expected: what the person says affects their sleep or activity (e.g. a new baby)."""
     if run_agent is None:
         from app.agent.agent import run_checkin_agent
 
@@ -49,7 +57,7 @@ def submit_checkin(
     checkin = checkin.model_copy(update={"id": checkin_id})
 
     history = [c for c in store.get_history(checkin.user_id, 7, checkin.day) if c.id != checkin_id]
-    findings = evaluate(checkin, history)
+    findings = evaluate(checkin, history) + body_findings(store, checkin.user_id, checkin.day, expected)
 
     reflection, coping_id, ai_available = FALLBACK_REFLECTIONS[checkin.mood], None, True
     try:

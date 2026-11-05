@@ -300,3 +300,31 @@ button:focus-visible, a:focus-visible, summary:focus-visible, li:focus-visible {
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* profile and memory */
+.field { display: flex; flex-direction: column; gap: 6px; font-weight: 700; font-size: 14px; }
+.field small { font-weight: 500; }
+.field input {
+  width: 100%; min-width: 0; border: 1.5px solid var(--line); border-radius: 14px; padding: 11px 14px;
+  background: var(--surface); color: var(--ink); font: inherit; font-weight: 500; font-size: 16px; /* 16px stops iOS zoom */
+}
+.field input::placeholder { color: #8ea2bb; }
+.field input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.error { color: var(--sos); font-weight: 700; }
+.memories { display: flex; flex-direction: column; gap: 8px; list-style: none; margin: 0; padding: 0; }
+.memories li { display: flex; align-items: flex-start; gap: 10px; background: var(--bg); border-radius: 14px; padding: 10px 12px; font-size: 14px; }
+.memories li span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.memories li small { display: block; color: var(--ink-soft); font-size: 11.5px; margin-top: 2px; }
+.memories li button { border: 0; background: none; color: var(--ink-soft); font-size: 18px; line-height: 1; padding: 2px 4px; }
+.check { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 14px; }
+.check input { width: 20px; height: 20px; accent-color: var(--accent); }
+/* body signals */
+.noticed { border-left: 4px solid var(--accent); }
+.noticed ul { margin: 6px 0 8px; padding-left: 18px; font-size: 14px; font-weight: 600; }
+.body-row { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; align-items: baseline; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.body-row:last-child { border-bottom: 0; }
+.body-row b { font-size: 15px; }
+.body-row small { grid-column: 1 / -1; color: var(--ink-soft); font-size: 12.5px; }
+.body-row .chg { font-weight: 800; font-size: 13px; color: var(--ink-soft); }
+.body-row .chg.flag { color: #b97c0c; }

@@ -36,11 +36,19 @@ STEER_CHECKS: dict[str, re.Pattern] = {
         r"\b(?:might|may|could) be (?:depression|an anxiety disorder|bipolar|ptsd|ocd|adhd|insomnia)\b"
         r"|\b(?:signs|symptoms) of (?:depression|anxiety|bipolar|ptsd|ocd|adhd|insomnia)\b"
         r"|\bsounds like (?:depression|bipolar|ptsd|ocd|adhd)\b"
+        r"|\bpmdd\b|premenstrual dysphoric"
+    ),
+    "medical_claim": re.compile(
+        r"\b(?:heart rate|hrv|heart rate variability|heart|pulse|sleep data|your numbers)\b[^.]{0,40}?"
+        r"\b(?:shows?|means?|indicates?|suggests?|proves?|is a sign|points to)\b"
+        r"|\barrhythmia|tachycardia|\bcardiac\b|blood pressure|sleep apnea|sleep disorder"
     ),
     "quick_fix": re.compile(
         r"\bthe (?:solution|fix|answer|cure) (?:is|would be)\b"
         r"|\bjust (?:stop|get over|snap out|cheer up|think positive|ignore (?:it|them))\b"
         r"|\bsnap out of\b|\bget over it\b|\bstop (?:worrying|being sad|overthinking)\b|\bthink positive\b"
+        r"|\b(?:it'?s|that'?s|probably|maybe) (?:just|only) (?:your )?(?:hormones|pms|your period|your cycle|period)\b"
+        r"|\bjust (?:hormones|pms)\b"
     ),
 }
 
@@ -54,7 +62,11 @@ GUIDANCE = {
         "Do not direct them to a professional or treatment. If it fits, say gently that support is always "
         "available in the app."
     ),
-    "quick_fix": "Do not offer a fix, a solution or an instruction to feel differently; acknowledge what they shared.",
+    "medical_claim": "Do not draw medical conclusions from heart rate, HRV or sleep data; at most mention a change gently.",
+    "quick_fix": (
+        "Do not offer a fix, a solution or an instruction to feel differently, and never put their feelings "
+        "down to hormones or their period; acknowledge what they shared."
+    ),
 }
 
 

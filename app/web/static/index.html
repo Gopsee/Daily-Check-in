@@ -31,6 +31,11 @@
               </div>
               <button type="button" class="talk-open" id="talk-open" aria-label="Talk about your day out loud" title="Talk about your day"><span data-icon="mic"></span></button>
             </div>
+            <div class="card noticed" id="noticed" hidden>
+              <p class="label">Lantern noticed · Apple Health</p>
+              <ul id="noticed-list"></ul>
+              <p class="soft small">A pattern, not a diagnosis. How are you, really?</p>
+            </div>
             <div class="card">
               <h3>How are you today?</h3>
               <div class="moods" id="moods" role="radiogroup" aria-label="Mood"></div>
@@ -40,7 +45,7 @@
               <div class="row-head"><h3>What's it like?</h3><span class="soft small" id="tag-count">Pick up to 3</span></div>
               <div class="pills left" id="tags"></div>
 
-              <h3>Sleep last night</h3>
+              <h3>Sleep last night <small class="soft" id="sleep-source" hidden>· from Apple Health</small></h3>
               <div class="stepper">
                 <button type="button" class="round" id="sleep-minus" aria-label="Less sleep">−</button>
                 <output id="sleep-value">7 h</output>
@@ -117,8 +122,14 @@
           <div class="card stack">
             <div class="row-head"><h2>Your mood</h2><span class="soft small" id="avg-label"></span></div>
             <div class="chart" id="chart"></div>
+            <p class="soft small" id="cycle-note" hidden></p>
           </div>
           <div class="card stack"><h2>Overview</h2><div class="stack" id="bars"></div></div>
+          <div class="card stack" id="body-card" hidden>
+            <div class="row-head"><h2>Apple Health</h2><span class="soft small">Simulated · this week vs usual</span></div>
+            <div class="stack tight" id="body-rows"></div>
+            <p class="soft small" id="body-expected" hidden></p>
+          </div>
           <div class="card stack"><h2>Recent days</h2><ul class="days" id="days"></ul></div>
         </div></div>
       </section>
@@ -131,13 +142,44 @@
           <div class="art" data-art="support"></div>
         </header>
         <div class="panel-wrap"><div class="panel stack">
+          <form class="card stack" id="profile-form" novalidate>
+            <div class="row-head"><h2>About you</h2><span class="soft small">Private to you</span></div>
+            <label class="field"><span>What should Lantern call you?</span><input id="pf-name" maxlength="40" autocomplete="given-name" placeholder="Your first name"></label>
+            <div class="field"><span>Age group</span><div class="pills left" id="pf-age" role="radiogroup" aria-label="Age group"></div></div>
+            <div class="field"><span>Gender</span><div class="pills left" id="pf-gender" role="radiogroup" aria-label="Gender"></div></div>
+            <div class="stack tight" id="pf-cycle">
+              <label class="check"><input type="checkbox" id="pf-cycle-on"> Track my period cycle</label>
+              <div class="stack tight" id="pf-cycle-fields" hidden>
+                <p class="soft small">Used only to spot patterns in your mood. The AI sees just where you are in your cycle, never your dates.</p>
+                <div class="field"><span>Last period started</span><div class="two"><input type="date" id="pf-cycle-start" aria-label="Last period start date"><button type="button" class="pill" id="pf-cycle-today">Started today</button></div></div>
+                <div class="two">
+                  <label class="field"><span>Cycle length <small class="soft">days</small></span><input type="number" id="pf-cycle-length" min="21" max="45" inputmode="numeric"></label>
+                  <label class="field"><span>Period length <small class="soft">days</small></span><input type="number" id="pf-cycle-period" min="2" max="8" inputmode="numeric"></label>
+                </div>
+                <p class="small soft" id="pf-cycle-status" aria-live="polite"></p>
+              </div>
+            </div>
+            <div class="field"><span>Anything affecting your sleep or activity? <small class="soft">So Lantern doesn't worry about expected changes</small></span><div class="pills left" id="pf-context"></div></div>
+            <label class="field"><span>What helps you? <small class="soft">Separate with commas</small></span><input id="pf-helps" maxlength="200" placeholder="music, walks, drawing"></label>
+            <label class="field"><span>People you trust <small class="soft">First names</small></span><input id="pf-people" maxlength="160" placeholder="Sam, Mom"></label>
+            <div class="field"><span>Emergency contact <small class="soft">Shown on the help screen. Never shared with the AI.</small></span>
+              <div class="two"><input id="pf-contact-name" maxlength="40" placeholder="Name" aria-label="Emergency contact name"><input id="pf-contact-phone" maxlength="24" inputmode="tel" placeholder="Phone" aria-label="Emergency contact phone"></div></div>
+            <p class="small error" id="pf-error" role="alert" hidden></p>
+            <button type="submit" class="cta">Save</button>
+          </form>
+
+          <div class="card stack">
+            <h2>What Lantern remembers</h2>
+            <p class="soft small">Short notes from your conversations, so it can follow up. Remove any you like.</p>
+            <ul class="memories" id="memories"></ul>
+            <button type="button" class="outline" id="forget-all">Forget everything</button>
+          </div>
+
           <h2>Talk to someone</h2>
           <p class="soft">Free and confidential. You don't need to be in crisis to call.</p>
           <div class="stack" id="support-hotlines"></div>
           <h2>Coping exercises</h2>
           <div class="stack tight" id="exercises"></div>
-          <h2>Demo controls</h2>
-          <div class="pills left" id="demo-pills"></div>
         </div></div>
       </section>
     </div>
@@ -154,6 +196,7 @@
         <div class="crisis-orb" aria-hidden="true"></div>
         <h2 id="crisis-title">You don't have to go through this alone.</h2>
         <p class="crisis-lead">It sounds like you're carrying a lot right now. Someone is ready to listen, right now, for free.</p>
+        <div class="stack" id="crisis-contact" hidden></div>
         <div class="stack" id="crisis-hotlines"></div>
         <div class="crisis-box" id="crisis-why" hidden><p class="label">Why we're showing this</p><ul></ul></div>
         <div class="crisis-box"><p class="label">While you wait</p><p>Put your feet flat on the floor. Breathe in slowly for 4, out for 6. Name 3 things you can see.</p></div>

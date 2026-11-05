@@ -33,7 +33,7 @@ class Checkin(BaseModel):
 
 
 class RiskFinding(BaseModel):
-    source: Literal["keyword", "score", "trend", "llm", "failsafe"]
+    source: Literal["keyword", "score", "trend", "body", "llm", "failsafe"]
     level: RiskLevel
     reason: str
 

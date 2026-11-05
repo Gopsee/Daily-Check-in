@@ -6,6 +6,8 @@ Lantern uses three small Strands agents: one reads each check-in, writes a short
 - 2 read-only tools, shared by the check-in and voice agents
 - 1 steering handler that asks for a rewrite
 - 1 output-guard hook as the hard backstop
+- 1 body-signal layer for (simulated) Apple Health data, elevated at most
+- 1 session manager for memory, with a profile and facts the person can see and delete
 - The AI can raise risk, never lower it
 
 ![Check-in flow: the phone sends a check-in to the risk engine and the check-in service, which saves it, runs the rules and the Strands agent, merges risk with max() and replies with bundled hotlines](images/checkin-flow.png)
@@ -92,6 +94,16 @@ Everything the agents can touch is read-only and limited to the person using the
 - On a hit, swaps in the standard message for that mood
 - Never changes the risk level, reason or coping pick, so it can't lower risk
 - Logs only the category names, never the text
+
+### Memory · `app/memory.py`
+
+- A profile the person sets: preferred name, age group, what helps, people they trust, an emergency contact
+- Short facts the agents save with a `remember` tool, shown in the Support tab with a remove button
+- Recent conversation in a Strands `FileSessionManager`, one session per person, trimmed to a window
+- The emergency contact's phone number appears on the crisis screen only and never reaches a model
+- Optional period-cycle tracking: the History chart shades the week before each predicted period; models see only the phase, never dates, and may never explain feelings away with hormones or lower risk because of it
+- Phone numbers and crisis details are never saved as memories
+- "Forget everything" deletes the memories and the saved conversation
 
 ### Prompt rules · `app/agent/prompts.py`
 
