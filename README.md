@@ -6,8 +6,7 @@
 
 **Lantern helps anyone look after their mental health: it notices when they're slipping, before they do, and puts a real human within reach the moment it senses risk.** It's a one-minute daily check-in run by agents built with the [Strands Agents SDK](https://strandsagents.com) on Amazon Bedrock, with every safety decision made in code the AI can't override.
 
-- **Demo video (2:34):** [add YouTube link]
-- **Article:** [add Builder Center link]
+- **Demo video (2:34):** [https://youtu.be/RL9mvNXc4Vw]
 
 > Lantern is a prototype, not a clinical tool or a substitute for professional care. If you or someone you know is struggling, call or text **988** in the US.
 
