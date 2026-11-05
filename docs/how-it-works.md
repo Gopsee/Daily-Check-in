@@ -4,7 +4,8 @@ Lantern uses three small Strands agents: one reads each check-in, writes a short
 
 - 3 agents: check-in, voice and per-line risk check
 - 2 read-only tools, shared by the check-in and voice agents
-- 1 output-guard hook
+- 1 steering handler that asks for a rewrite
+- 1 output-guard hook as the hard backstop
 - The AI can raise risk, never lower it
 
 ![Check-in flow: the phone sends a check-in to the risk engine and the check-in service, which saves it, runs the rules and the Strands agent, merges risk with max() and replies with bundled hotlines](images/checkin-flow.png)
@@ -77,6 +78,13 @@ Everything the agents can touch is read-only and limited to the person using the
 - Reflection, risk level, one-line reason, signals, coping id
 - Output that fails validation counts as a model failure
 
+### Steering: reply rewrite · `app/agent/steering.py`
+
+- A Strands `SteeringHandler`; `steer_after_model` reads each draft reflection
+- Asks for a rewrite (`Guide`) if the draft diagnoses or hints at a condition, mentions medication or a phone number, directs the person to treatment, or offers a quick fix
+- One rewrite at most, then the output guard decides
+- A rewrite can never lower risk: the highest level any rejected draft reached is kept
+
 ### Hook: output guard · `app/agent/guard.py`
 
 - A Strands `HookProvider` on `AfterInvocationEvent`, added to every check-in agent
@@ -107,7 +115,7 @@ Three jobs an agent could do are done in plain code instead, because getting the
 | Nova Pro fails and the person wrote a note | Risk rises to elevated with support lines shown calmly, plus a standard reflection for their mood. |
 | Nova Pro fails and there's no note | The rules decide alone; the person gets a standard reflection for their mood. |
 | The note tries to steer the AI's risk level | The rules' level still stands because of the `max()` merge. |
-| The AI writes a number, drug or diagnosis anyway | The output guard swaps in the standard reflection for their mood; the risk level is unchanged. |
+| The AI writes a number, drug or diagnosis | Steering asks for one rewrite; if that still fails, the output guard swaps in the standard reflection for their mood; the risk level is unchanged. |
 | The server can't be reached | The page still shows hotlines from the data built into it. |
 | The voice connection drops | The Talk screen says so and offers to start again. What was already said can still go into the check-in. |
 | The Nova Pro voice check fails | The phrase rules still check every line, and the words are checked again in full if they're added to the check-in. |

@@ -23,6 +23,7 @@ Lantern is a one-minute daily mental health check-in run by AI agents built with
 |---|---|---|
 | Check-in agent | `Agent` on Nova Pro with `structured_output_model` | `app/agent/agent.py` |
 | User-bound tools | `@tool`: `get_mood_history`, `list_coping_exercises` | `app/agent/tools.py` |
+| Reply steering | `SteeringHandler`: `steer_after_model` returns `Guide` | `app/agent/steering.py` |
 | Output guard | `HookProvider` on `AfterInvocationEvent` | `app/agent/guard.py` |
 | Voice agent | `BidiAgent` on Nova Sonic | `app/voice/agent.py` |
 | Per-line risk check | `Agent` on Nova Pro with structured output | `app/agent/agent.py` |
@@ -31,7 +32,8 @@ Safety is decided in plain code around the agents:
 
 - **The AI can raise risk, never lower it.** Rules (phrases, PHQ-2 and item 9, 7-day trend) and the agent each produce findings, and the final level is the highest one (`app/service.py`).
 - **Help before the AI finishes.** A rules-only precheck can open the crisis screen before the agent replies.
-- **Output guard.** A hook replaces any reflection that contains phone numbers, helpline names, medication or diagnostic language. It never touches the risk level.
+- **Steering first.** If a draft reply diagnoses, hints at a condition, mentions medication, sends the person to treatment or offers a quick fix, a Strands steering handler discards it and asks the agent for one rewrite. A rewrite can never lower the risk level.
+- **Output guard.** If the rewrite still fails, a hook replaces any reflection that contains phone numbers, helpline names, medication or diagnostic language. It never touches the risk level.
 - **Fail-safe.** If the model fails, the check-in is already saved, the rules still decide, and an unread note raises the level to elevated.
 - **Works offline.** Hotline numbers are built into the page, never written by a model.
 
@@ -88,7 +90,7 @@ There is also a terminal version: `python -m app.cli --demo decline`.
 ## Tests
 
 ```bash
-pytest              # 56 offline tests, no AWS needed
+pytest              # 76 offline tests, no AWS needed
 pytest -m live      # live eval against Bedrock
 ```
 

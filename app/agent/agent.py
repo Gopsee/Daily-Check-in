@@ -7,6 +7,7 @@ from strands.models import BedrockModel
 from app import config
 from app.agent.guard import OutputGuard
 from app.agent.prompts import SYSTEM_PROMPT, UTTERANCE_PROMPT, format_checkin, format_utterance
+from app.agent.steering import ReplySteering
 from app.agent.tools import make_tools
 from app.models import AgentOutput, Checkin, UtteranceRisk
 from app.service import FALLBACK_REFLECTIONS
@@ -27,12 +28,14 @@ def bedrock_model(max_tokens: int = 1024) -> BedrockModel:
     )
 
 
-def build_agent(store: Store, checkin: Checkin) -> Agent:
+def build_agent(store: Store, checkin: Checkin, steering: ReplySteering | None = None) -> Agent:
     # A fresh agent per check-in: no conversation state leaks between check-ins or users.
+    # Steering asks for one rewrite of an unsupportive reply; the guard is the hard backstop.
     return Agent(
         model=bedrock_model(),
         system_prompt=SYSTEM_PROMPT,
         tools=make_tools(store, checkin.user_id, checkin.day),
+        plugins=[steering or ReplySteering()],
         hooks=[OutputGuard(replacement=FALLBACK_REFLECTIONS[checkin.mood])],
         callback_handler=None,
     )
@@ -41,12 +44,13 @@ def build_agent(store: Store, checkin: Checkin) -> Agent:
 def run_checkin_agent(store: Store, checkin: Checkin) -> AgentOutput:
     """Run the check-in agent on Nova Pro. Raises on failure; the service applies the fail-safe."""
     try:
-        agent = build_agent(store, checkin)
+        steering = ReplySteering()
+        agent = build_agent(store, checkin, steering)
         result = agent(format_checkin(checkin), structured_output_model=AgentOutput)
         output = result.structured_output
         if not isinstance(output, AgentOutput):
             raise ValueError("Agent returned no structured output")
-        return output
+        return steering.keep_risk(output)
     except Exception as exc:
         log.warning("Model %s failed (%s)", config.MODEL_ID, type(exc).__name__)
         raise
