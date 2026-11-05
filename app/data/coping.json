@@ -1,0 +1,38 @@
+[
+  {
+    "id": "box_breathing",
+    "title": "Box breathing (1 minute)",
+    "good_for": ["anxious", "stressed", "angry", "overwhelmed"],
+    "steps": ["Breathe in for 4 counts", "Hold for 4 counts", "Breathe out for 4 counts", "Hold for 4 counts", "Repeat 4 times"]
+  },
+  {
+    "id": "grounding_54321",
+    "title": "5-4-3-2-1 grounding",
+    "good_for": ["anxious", "panicky", "overwhelmed", "numb"],
+    "steps": ["Name 5 things you can see", "4 things you can touch", "3 things you can hear", "2 things you can smell", "1 thing you can taste"]
+  },
+  {
+    "id": "thought_reframe",
+    "title": "2-minute thought check",
+    "good_for": ["sad", "self-critical", "worried"],
+    "steps": ["Write down the thought bothering you", "What is the evidence for it?", "What is the evidence against it?", "What would you tell a friend who had this thought?"]
+  },
+  {
+    "id": "one_small_step",
+    "title": "One small step",
+    "good_for": ["low", "tired", "unmotivated", "stuck"],
+    "steps": ["Pick one task that takes under 5 minutes (drink water, open a window, step outside)", "Do just that one thing", "Notice how you feel afterwards"]
+  },
+  {
+    "id": "reach_out",
+    "title": "Reach out to someone",
+    "good_for": ["lonely", "isolated", "sad"],
+    "steps": ["Think of one person you feel even a little safe with", "Send them a short message, even just 'hey, thinking of you'", "You don't have to explain everything"]
+  },
+  {
+    "id": "gratitude_three",
+    "title": "Three good things",
+    "good_for": ["okay", "calm", "content"],
+    "steps": ["Write down three things that went okay today, however small", "For one of them, note why it happened"]
+  }
+]

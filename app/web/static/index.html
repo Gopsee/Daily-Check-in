@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#2f80e6">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>Lantern</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&display=swap">
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+<div class="device">
+  <div class="app" id="app" data-tab="checkin">
+    <div class="scroll" id="scroll">
+
+      <!-- CHECK-IN -->
+      <section class="screen active" id="screen-checkin" aria-label="Check-in">
+        <header class="hero">
+          <div class="hero-head"><span class="logo" data-icon="lotus"></span><h1>Lantern</h1><button class="sos" data-action="sos"><span data-icon="call"></span>Get help</button></div>
+          <div class="art" data-art="checkin"></div>
+        </header>
+        <div class="panel-wrap"><div class="panel">
+          <form id="checkin-form" class="stack" novalidate>
+            <div class="greeting-row">
+              <div>
+                <h2 class="greeting" id="greeting">Hello</h2>
+                <p class="soft" id="today-label"></p>
+              </div>
+              <button type="button" class="talk-open" id="talk-open" aria-label="Talk about your day out loud" title="Talk about your day"><span data-icon="mic"></span></button>
+            </div>
+            <div class="card">
+              <h3>How are you today?</h3>
+              <div class="moods" id="moods" role="radiogroup" aria-label="Mood"></div>
+            </div>
+
+            <div class="stack fade" id="details">
+              <div class="row-head"><h3>What's it like?</h3><span class="soft small" id="tag-count">Pick up to 3</span></div>
+              <div class="pills left" id="tags"></div>
+
+              <h3>Sleep last night</h3>
+              <div class="stepper">
+                <button type="button" class="round" id="sleep-minus" aria-label="Less sleep">−</button>
+                <output id="sleep-value">7 h</output>
+                <button type="button" class="round" id="sleep-plus" aria-label="More sleep">+</button>
+                <button type="button" class="pill" id="sleep-skip" aria-pressed="false">Skip</button>
+              </div>
+
+              <h3><label for="note">Anything on your mind?</label></h3>
+              <textarea id="note" rows="3" maxlength="1000" placeholder="Optional. Write as much or as little as you like."></textarea>
+            </div>
+
+            <div class="card stack" id="phq" hidden>
+              <h3>Over the last 2 weeks, how often have you been bothered by…</h3>
+              <div class="phq-q" data-q="interest"><p>Little interest or pleasure in doing things</p><div class="pills left" role="radiogroup"></div></div>
+              <div class="phq-q" data-q="down"><p>Feeling down, depressed, or hopeless</p><div class="pills left" role="radiogroup"></div></div>
+              <div class="phq-q" data-q="item9" hidden><p>Thoughts that you would be better off dead, or of hurting yourself</p><div class="pills left" role="radiogroup"></div></div>
+            </div>
+
+            <p class="soft small center">Not a substitute for professional care. AI can misjudge.</p>
+            <button type="submit" class="cta" id="submit-btn" disabled>Check in</button>
+          </form>
+
+          <div class="thinking" id="thinking" hidden>
+            <div class="breath"></div>
+            <h3>Taking a moment to read your check-in…</h3>
+            <p class="soft">Breathe in as the circle grows, out as it shrinks.</p>
+          </div>
+
+          <div class="stack" id="result" hidden></div>
+        </div></div>
+      </section>
+
+      <!-- TALK -->
+      <section class="screen" id="screen-talk" aria-label="Talk">
+        <header class="hero">
+          <div class="hero-head"><button type="button" class="hero-back" id="talk-back" aria-label="Back to check-in"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button><h1>Talk it through</h1><button class="sos" data-action="sos"><span data-icon="call"></span>Get help</button></div>
+          <div class="art" data-art="talk"></div>
+        </header>
+        <div class="panel-wrap"><div class="panel stack">
+          <div class="talk-stage">
+            <button type="button" class="talk-orb" id="talk-orb" data-state="idle" aria-label="Start talking">
+              <span class="ring"></span><span class="ring r2"></span><span class="ic" data-icon="mic"></span>
+            </button>
+            <p class="talk-status" id="talk-status" aria-live="polite">Tap to start talking</p>
+            <p class="soft small center" id="talk-hint">Talk about your day or how you feel. Headphones help it hear you clearly.</p>
+          </div>
+          <div class="talk-controls" id="talk-controls" hidden>
+            <button type="button" class="pill" id="talk-mute" aria-pressed="false">Mute mic</button>
+            <button type="button" class="pill" id="talk-end">End conversation</button>
+          </div>
+          <div class="talk-alert" id="talk-support" hidden>
+            <p>It sounds like a lot right now. Free, confidential support is one tap away.</p>
+            <button type="button" class="pill on" id="talk-support-open">See support lines</button>
+          </div>
+          <ol class="talk-log" id="talk-log"></ol>
+          <form class="talk-type" id="talk-type" hidden>
+            <label class="visually-hidden" for="talk-input">Type a message</label>
+            <input id="talk-input" type="text" maxlength="1000" placeholder="Or type here…" autocomplete="off">
+            <button type="submit" class="round send" aria-label="Send">➤</button>
+          </form>
+          <button type="button" class="cta" id="talk-to-checkin" hidden>Add what I said to today's check-in</button>
+          <p class="soft small center">Your voice is processed by Amazon Nova Sonic on AWS. Nothing is kept unless you add it to today's check-in.</p>
+        </div></div>
+      </section>
+
+      <!-- HISTORY -->
+      <section class="screen" id="screen-history" aria-label="History">
+        <header class="hero">
+          <div class="hero-head"><span class="logo" data-icon="lotus"></span><h1>Mood History</h1><button class="sos" data-action="sos"><span data-icon="call"></span>Get help</button></div>
+          <div class="pills" id="range-pills"></div>
+          <div class="art" data-art="history"></div>
+        </header>
+        <div class="panel-wrap"><div class="panel stack">
+          <div class="card stack">
+            <div class="row-head"><h2>Your mood</h2><span class="soft small" id="avg-label"></span></div>
+            <div class="chart" id="chart"></div>
+          </div>
+          <div class="card stack"><h2>Overview</h2><div class="stack" id="bars"></div></div>
+          <div class="card stack"><h2>Recent days</h2><ul class="days" id="days"></ul></div>
+        </div></div>
+      </section>
+
+      <!-- SUPPORT -->
+      <section class="screen" id="screen-support" aria-label="Support">
+        <header class="hero">
+          <div class="hero-head"><span class="logo" data-icon="lotus"></span><h1>Support</h1><button class="sos" data-action="sos"><span data-icon="call"></span>Get help</button></div>
+          <div class="pills" id="region-pills"></div>
+          <div class="art" data-art="support"></div>
+        </header>
+        <div class="panel-wrap"><div class="panel stack">
+          <h2>Talk to someone</h2>
+          <p class="soft">Free and confidential. You don't need to be in crisis to call.</p>
+          <div class="stack" id="support-hotlines"></div>
+          <h2>Coping exercises</h2>
+          <div class="stack tight" id="exercises"></div>
+          <h2>Demo controls</h2>
+          <div class="pills left" id="demo-pills"></div>
+        </div></div>
+      </section>
+    </div>
+
+    <nav class="tabbar" id="tabbar">
+      <button class="tab on" data-tab="checkin"><span class="ic" data-icon="lotus"></span>Check-in</button>
+      <button class="tab" data-tab="history"><span class="ic" data-icon="chart"></span>History</button>
+      <button class="tab" data-tab="support"><span class="ic" data-icon="heart"></span>Support</button>
+    </nav>
+
+    <!-- CRISIS: renders from inlined data, no network needed -->
+    <div class="crisis" id="crisis" role="dialog" aria-modal="true" aria-labelledby="crisis-title" hidden>
+      <div class="crisis-inner stack">
+        <div class="crisis-orb" aria-hidden="true"></div>
+        <h2 id="crisis-title">You don't have to go through this alone.</h2>
+        <p class="crisis-lead">It sounds like you're carrying a lot right now. Someone is ready to listen, right now, for free.</p>
+        <div class="stack" id="crisis-hotlines"></div>
+        <div class="crisis-box" id="crisis-why" hidden><p class="label">Why we're showing this</p><ul></ul></div>
+        <div class="crisis-box"><p class="label">While you wait</p><p>Put your feet flat on the floor. Breathe in slowly for 4, out for 6. Name 3 things you can see.</p></div>
+        <button class="outline" id="crisis-close">I'm safe for now</button>
+      </div>
+    </div>
+    <div class="toast" id="toast" role="status" hidden></div>
+  </div>
+</div>
+<script>window.BOOT = __BOOT__;</script>
+<script src="/static/art.js"></script>
+<script src="/static/app.js"></script>
+</body>
+</html>

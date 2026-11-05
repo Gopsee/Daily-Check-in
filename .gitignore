@@ -1,0 +1,24 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Local secrets
+.env
+
+# Demo recordings live on YouTube, not in the repo
+video/
+*.mp4
+
+# Workshop scratch work, not part of Lantern
+first_run.py
+report.md
+
+# OS and editor
+.DS_Store
+.vscode/
+.idea/
+
+# Early planning notes, superseded by README.md and Architecture.md
+Project_Outline.md

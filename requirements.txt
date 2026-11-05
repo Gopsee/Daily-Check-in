@@ -1,0 +1,5 @@
+strands-agents[bidi]==1.63.0
+starlette
+uvicorn
+websockets
+pytest

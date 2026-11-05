@@ -1,0 +1,10 @@
+[project]
+name = "lantern"
+version = "0.1.0"
+requires-python = ">=3.12"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+markers = ["live: calls Amazon Bedrock (run with -m live)"]
+addopts = "-m 'not live'"
