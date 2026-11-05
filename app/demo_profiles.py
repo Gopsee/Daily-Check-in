@@ -35,12 +35,12 @@ DEMO_PROFILES: dict[str, dict] = {
         ],
     },
     "maya": {
-        "label": "Maya, 16",
-        "summary": "Exam stress; tracks her cycle, which is due in a few days.",
+        "label": "Maya, 24",
+        "summary": "Studying for her nursing exam; tracks her cycle, which is due in a few days.",
         "scenario": "steady",
         "profile": {
             "preferred_name": "Maya",
-            "age_group": "teen",
+            "age_group": "young_adult",
             "gender": "female",
             "cycle": {"tracking": True, "days_ago": 24, "length": 28, "period_length": 5},
             "what_helps": ["drawing", "journaling"],
@@ -52,7 +52,7 @@ DEMO_PROFILES: dict[str, dict] = {
             "recent": {"sleep": 6.9, "steps": 6600, "exercise": 15, "rhr": 68, "hrv": 54},
         },
         "memories": [
-            (6, "Maya has her SAT on Saturday"),
+            (6, "Maya has her nursing licensing exam on Saturday"),
             (3, "Drawing helps Maya calm down before bed"),
         ],
     },
