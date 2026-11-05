@@ -167,18 +167,6 @@ docs/               how it works, with diagrams
 tests/              offline tests and the live eval
 ```
 
-## What it isn't yet
-
-Lantern is a prototype, not a clinical tool or a substitute for care. Each of these must be resolved before any real person relies on it:
-
-- **Not yet reviewed by clinicians** or tested with teens, athletes or working professionals.
-- **Storage is local and unencrypted** for one demo user. Real use needs sign-in, encrypted storage and data retention.
-- **Privacy from managers and coaches.** Any rollout through an employer or team would need safeguards that keep check-ins private, and those aren't built yet.
-- **Bedrock's content filter** sometimes blocks the AI's reply on exactly the notes that matter most, about 1 call in 5 on a crisis note in our tests. The fail-safe still shows support lines, but an indirect note can then miss the crisis screen. A retry is the next fix.
-- **Apple Health is simulated.** A real version needs a native iOS companion app (HealthKit has no web API) that sends daily summaries only.
-- **Cycle predictions are simple** fixed-length estimates, and period data is especially sensitive; a real launch needs encryption, clear consent and legal review.
-- **Memory follow-ups are hit and miss:** the agent saves the right facts but doesn't always ask about them later.
-- **English only.** Voice replies play directly and can't be filtered first; safety checks run on what the person says.
 
 ## License
 
